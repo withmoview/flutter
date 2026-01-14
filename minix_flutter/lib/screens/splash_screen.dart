@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:math' as math; // 애니메이션 수학 계산용
+import 'package:google_fonts/google_fonts.dart';
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,6 +15,7 @@ class _SplashScreenState extends State<SplashScreen> {
   // 디자인 통일 컬러
   final Color _primaryColor = const Color(0xFF4E73DF);
 
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +27,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const backgroundColor = Color(0xFFF5F7FA);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
@@ -51,14 +56,13 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 24),
 
             // 2. 앱 이름
-            const Text(
-              '영화랑',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5, // 자간을 살짝 좁혀서 단단한 느낌
-                color: Colors.black87,
-              ),
+            Text(
+              ' withmovie',
+              style: GoogleFonts.dancingScript(
+              color: const Color(0XFF4E73DF),
+              fontWeight: FontWeight.w700,
+              fontSize: 28,
+            ),
             ),
             const SizedBox(height: 48),
 
