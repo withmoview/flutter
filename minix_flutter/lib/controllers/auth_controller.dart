@@ -68,7 +68,7 @@ class AuthController extends GetxController{
   void logout(){
     user.value = null;
     _api.clearToken();
-    Get.offAllNamed('/login');
+    Get.offAllNamed('/');
   }
 
   // 서버에서 최신 프로필 정보 가져오기

@@ -55,7 +55,7 @@ class _HomeShellState extends State<HomeShell> {
                 items: _items,
                 index: _index,
                 onChanged: (i) => setState(() => _index = i),
-                onAiTap: () => Get.toNamed('/ai'),
+                onAiTap: () => Get.toNamed('/compose'),
               ),
             ),
           ),

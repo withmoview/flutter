@@ -11,7 +11,7 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState(); 
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -20,6 +20,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   List<Tweet> _myTweets = []; // 내 트윗 목록
   bool _isLoading = true; // 로딩 상태
+
+  // ★ 디자인 테마 컬러 (로그인 화면과 통일)
+  final Color _primaryColor = const Color(0xFF4E73DF);
+  final Color _backgroundColor = const Color(0xFFF5F7FA); // 아주 연한 회색 배경
 
   @override
   void initState() {
@@ -44,18 +48,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _backgroundColor, // 배경색 변경
       appBar: AppBar(
-        title: const Text('프로필'),
+        title: const Text(
+          '프로필',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0, // 앱바 그림자 제거 (깔끔하게)
+        centerTitle: true,
         actions: [
-          // 로그아웃 버튼
+          // 로그아웃 버튼 (스타일 개선)
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () => _authController.logout(),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: _primaryColor))
           : _buildContent(),
     );
   }
@@ -68,84 +79,199 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // 프로필 이미지 (이름 첫 글자로 대체)
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: const Color.fromARGB(255, 46, 80, 183),
-              child: Text(
-                user.name[0].toUpperCase(),
-                style: const TextStyle(fontSize: 40),
+            // 1. 프로필 카드 섹션 (하얀색 박스 안에 정보 담기)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 이름
-            Text(
-              user.name,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-
-            // 사용자명
-            Text(
-              '@${user.username}',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-
-            const SizedBox(height: 24),
-
-            // (옵션) 링크 버튼 - import 사용도 겸해서 최소만
-            TextButton(
-              onPressed: () {
-                Get.to(() => const WebViewScreen(
-                      title: '이용약관',
-                      url: 'https://banawy.store',
-                    ));
-              },
-              child: const Text('이용약관 보기'),
-            ),
-
-            const SizedBox(height: 24),
-            const Divider(),
-
-            // 내 트윗 개수
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+              child: Column(
                 children: [
+                  // 프로필 이미지 (그림자 추가)
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: _primaryColor.withOpacity(0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 45, // 크기 살짝 조정
+                      backgroundColor: _primaryColor,
+                      child: Text(
+                        user.name[0].toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 이름
                   Text(
-                    '내 트윗 ${_myTweets.length}개',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    user.name,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // 사용자명
+                  Text(
+                    '@${user.username}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 내 트윗 개수 & 이용약관 (가로로 배치하여 공간 절약)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // 트윗 개수 표시
+                      _buildInfoItem(
+                        count: _myTweets.length.toString(),
+                        label: "내 트윗",
+                      ),
+                      // 구분선
+                      Container(height: 30, width: 1, color: Colors.grey[300]),
+                      // 이용약관 버튼
+                      TextButton(
+                        onPressed: () {
+                          Get.to(() => const WebViewScreen(
+                                title: '이용약관',
+                                url: 'https://banawy.store',
+                              ));
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey[700],
+                        ),
+                        child: const Column(
+                          children: [
+                             Icon(Icons.description_outlined, size: 22),
+                             SizedBox(height: 4),
+                             Text("이용약관", style: TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // 내 트윗 목록
+            const SizedBox(height: 24),
+
+            // 2. 리스트 헤더
+            Padding(
+              padding: const EdgeInsets.only(left: 24, bottom: 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "최근 활동",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+            ),
+
+            // 3. 내 트윗 목록
             if (_myTweets.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('작성한 트윗이 없습니다'),
+              Padding(
+                padding: const EdgeInsets.only(top: 40),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.article_outlined, size: 48, color: Colors.grey[300]),
+                      const SizedBox(height: 10),
+                      Text(
+                        '작성한 트윗이 없습니다',
+                        style: TextStyle(color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
               )
             else
               ListView.separated(
-                shrinkWrap: true, // Column 안에서 사용하려면 필요
-                physics: const NeverScrollableScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(), // 스크롤은 전체 화면이 담당
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 itemCount: _myTweets.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, __) => const SizedBox(height: 12), // 카드 사이 간격
                 itemBuilder: (context, index) {
-                  return TweetCard(
-                    tweet: _myTweets[index],
-                    onLike: () {}, // 프로필에서는 좋아요 비활성화(원하시면 연결 가능)
-                    onDelete: () {}, // 필요 없으면 TweetCard 파라미터에 맞춰 제거
+                  // 트윗 카드 스타일도 살짝 감싸줌
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TweetCard(
+                      tweet: _myTweets[index],
+                      onLike: () {},
+                      onDelete: () {},
+                    ),
                   );
                 },
               ),
+            const SizedBox(height: 40), // 하단 여백
           ],
         ),
       );
     });
+  }
+
+  // 통계 아이템 위젯 (숫자 + 라벨)
+  Widget _buildInfoItem({required String count, required String label}) {
+    return Column(
+      children: [
+        Text(
+          count,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: _primaryColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      ],
+    );
   }
 }

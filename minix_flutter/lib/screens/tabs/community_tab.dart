@@ -33,14 +33,14 @@ class CommunityTab extends StatelessWidget{
         ],
       ),
 
-      floatingActionButton: FloatingActionButton(
-        mini: true,
-        onPressed: (){
-          Get.toNamed('/compose');
-        },
-        child: const Icon(Icons.edit),
-        backgroundColor: const Color.fromARGB(255, 46, 80, 183),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   mini: true,
+      //   onPressed: (){
+      //     Get.toNamed('/compose');
+      //   },
+      //   child: const Icon(Icons.edit),
+      //   backgroundColor: const Color.fromARGB(255, 46, 80, 183),
+      // ),
 
       body: Obx(() {
         if (tweetcontroller.isLoading.value){

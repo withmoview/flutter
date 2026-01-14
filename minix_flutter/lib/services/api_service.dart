@@ -67,7 +67,7 @@ class ApiService extends GetConnect{
   void onInit(){
 
     //서버 주소를 설정
-    httpClient.baseUrl = 'https://flutter.banawy.store/api';
+    httpClient.baseUrl = 'http://10.0.2.2:3000/api';
     httpClient.timeout = const Duration(seconds: 30);
 
     httpClient.addRequestModifier<dynamic>((request) async {
