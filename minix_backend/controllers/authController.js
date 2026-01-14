@@ -54,7 +54,7 @@ exports.login = async (req, res) => {
     res.json({
     message: '로그인 성공',
     token,
-    user: { id: user.id, email: user.email, name: user.name, username: user.username }
+    user: { id: user.id, email: user.email, name: user.name, username: user.username, profile_image: user.profile_image, created_at: user.created_at }
     });
     } catch (err) {
     console.error(err);

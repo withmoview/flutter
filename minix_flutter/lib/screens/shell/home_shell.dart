@@ -23,7 +23,7 @@ class _HomeShellState extends State<HomeShell> {
     BottomNavItem(label: '홈', icon: Icons.home_rounded),
     BottomNavItem(label: '모임', icon: Icons.people_alt_rounded),
     BottomNavItem(label: '커뮤니티', icon: Icons.chat_bubble_outline_rounded),
-    BottomNavItem(label: '마이페이지', icon: Icons.person_rounded),
+    BottomNavItem(label: '마이', icon: Icons.person_rounded),
   ];
 
   final _pages = const [

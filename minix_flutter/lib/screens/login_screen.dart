@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:minix_flutter/controllers/auth_controller.dart';
+import 'package:google_fonts/google_fonts.dart';
 // import 'register_screen.dart'; // 라우팅을 사용하므로 주석 처리하거나 필요시 사용
 // import 'tabs/home_screen.dart'; // 위와 동일
 
@@ -129,17 +130,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
                 
                 // 2. 타이틀 영역
-                const Text(
-                  '영화랑',
+                Text(
+                  'withmovie',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: Colors.black87,
+                  style: GoogleFonts.dancingScript(
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 35,
                   ),
                 ),
                 const SizedBox(height: 8),
