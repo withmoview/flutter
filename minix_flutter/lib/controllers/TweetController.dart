@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import '../models/tweet.dart';
 import '../services/api_service.dart';
 
+import 'dart:io'; // 맨 위에 추가
+
 class TweetController extends GetxController{
   final _api = Get.find<ApiService>();
 
@@ -74,4 +76,49 @@ class TweetController extends GetxController{
       Get.snackbar('오류', '좋아요 실패');
     }
   }
+
+
+//리뷰 생성
+Future<bool> createReview({
+  required String title,
+  required String genre,
+  required double rating,
+  required String content,
+  String? posterUrl,   // ✅ 추가
+  int? tmdbId,         // (선택) 나중에 확장용
+  File? posterFile, // 지금은 서버 저장 안 함 (UI 미리보기용)
+}) async {
+  final packed = _packReview(
+    title: title,
+    genre: genre,
+    rating: rating,
+    posterUrl: posterUrl,
+    tmdbId: tmdbId,
+    text: content,
+  );
+
+  return await createTweet(packed);
 }
+
+String _packReview({
+  required String title,
+  required String genre,
+  required double rating,
+  required String text,
+  String? posterUrl,
+  int? tmdbId,
+}) {
+  // 줄바꿈 포함해도 안전하게 저장되도록 TEXT는 마지막에 둠
+  return [
+    '[REVIEW]',
+    'TITLE=${title.trim()}',
+    'GENRE=${genre.trim()}',
+    'RATING=${rating.toStringAsFixed(1)}',
+    'TEXT=${text.trim()}',
+    if (tmdbId != null) 'TMDB_ID=$tmdbId',        //영화추가
+    if (posterUrl != null && posterUrl.trim().isNotEmpty) 'POSTER=${posterUrl.trim()}', //영화추가
+  ].join('\n');
+}
+
+}
+

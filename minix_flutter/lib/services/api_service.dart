@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'dart:io';
+import 'package:get/get.dart';
+
 
 //api 통신을 하기 위한 기본 클래스
 class ApiService extends GetConnect{
@@ -128,4 +131,61 @@ class ApiService extends GetConnect{
   }
   return [];
   }
+
+  Future<List<dynamic>> getReviewsTimeline() async {
+  final res = await get('/reviews');
+  if (res.statusCode == 200) {
+    // tweets 처럼 data 래핑이면 이대로
+    return res.body['data'] ?? [];
+  }
+  return [];
+  }
+
+
+  Future<Response> createReview({
+    required String title,
+    required String genre,
+    required String content,
+    required double rating,
+    File? posterFile,
+  }) async {
+    // ✅ posterFile이 있으면 multipart
+    if (posterFile != null) {
+      final form = FormData({
+        'title': title,
+        'genre': genre,
+        'content': content,
+        'rating': rating.toString(), // 서버가 number로 받으면 그냥 rating도 OK지만 안전하게 string
+        'poster': MultipartFile(
+          posterFile,
+          filename: posterFile.path.split('/').last,
+        ),
+      });
+
+      return await post('/reviews', form);
+    }
+
+    // ✅ posterFile이 없으면 json body로 보내도 됨
+    return await post('/reviews', {
+      'title': title,
+      'genre': genre,
+      'content': content,
+      'rating': rating,
+    });
+  }
+
+  Future<bool> deleteReview(int id) async {
+    final res = await delete('/reviews/$id');
+    return res.statusCode == 200;
+  }
+
+  Future<Map<String, dynamic>?> toggleReviewLike(int reviewId) async {
+  final res = await post('/reviews/$reviewId/like', {});
+  if (res.statusCode == 200) {
+    return (res.body is Map) ? Map<String, dynamic>.from(res.body) : null;
+  }
+  return null;
+}
+
+
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:minix_flutter/controllers/TweetController.dart';
 import 'package:minix_flutter/controllers/auth_controller.dart';
+import 'package:minix_flutter/controllers/review_controller.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:get/get.dart';
 import './app.dart';
