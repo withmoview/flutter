@@ -1,98 +1,40 @@
+// lib/controllers/meeting_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../models/meeting_room.dart';
-import 'auth_controller.dart'; // ✅ 1. AuthController 임포트
+import '../services/api_service.dart';
+import 'auth_controller.dart';
 
 class MeetingController extends GetxController {
-  // 1. 입력창(TextField) 컨트롤러들
-  final titleController = TextEditingController(); // 방 제목
-  final movieController = TextEditingController(); // 영화 제목
-  final theaterController = TextEditingController(); // 영화관
-  final passwordController = TextEditingController(); // 비밀번호
+  final ApiService _api = Get.find<ApiService>();
 
-  // 2. 날짜와 시간 선택 변수 (Obs)
-  Rx<DateTime?> selectedDate = Rx<DateTime?>(null); 
-  Rx<TimeOfDay?> selectedTime = Rx<TimeOfDay?>(null);
+  // 입력 컨트롤러
+  final titleController = TextEditingController();
+  final movieController = TextEditingController();
+  final theaterController = TextEditingController();
+  final passwordController = TextEditingController();
 
-  // 로딩 상태 및 데이터 리스트
-  var isLoading = false.obs;
-  
-  // ✅ 생성된 모임들을 저장할 리스트 (메모리 저장소)
-  RxList<MeetingRoom> meetings = <MeetingRoom>[].obs;
+  // 선택 값
+  final Rx<DateTime?> selectedDate = Rx<DateTime?>(null);
+  final Rx<TimeOfDay?> selectedTime = Rx<TimeOfDay?>(null);
 
-  // 3. 방 생성하기
-  Future<void> createMeetingRoom() async {
-    // (1) 유효성 검사
-    if (titleController.text.isEmpty ||
-        movieController.text.isEmpty ||
-        theaterController.text.isEmpty ||
-        passwordController.text.isEmpty ||
-        selectedDate.value == null ||
-        selectedTime.value == null) {
-      Get.snackbar(
-        "알림", "모든 정보를 입력해주세요!", 
-        snackPosition: SnackPosition.BOTTOM, 
-        backgroundColor: Colors.orange, 
-        colorText: Colors.white
-      );
-      return;
-    }
+  // TMDB 선택값
+  final RxInt selectedMovieId = RxInt(-1);
+  final RxString selectedMoviePosterPath = ''.obs;
 
-    isLoading.value = true;
+  // 상태
+  final isLoading = false.obs;
 
-    try {
-      // (2) 날짜와 시간 합치기
-      final date = selectedDate.value!;
-      final time = selectedTime.value!;
-      final finalDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  // 서버에서 받아오는 모임 목록
+  final RxList<MeetingRoom> meetings = <MeetingRoom>[].obs;
 
-      // ✅ [수정 핵심] AuthController에서 현재 로그인한 유저 정보 가져오기
-      final authController = Get.find<AuthController>();
-      final myInfo = authController.user.value;
-      
-      // 내 닉네임 가져오기 (없으면 '익명' 처리)
-      final String myName = myInfo?.username ?? '익명';
-
-      // (3) 모델 생성 (실제 내 이름 적용)
-      final newRoom = MeetingRoom(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), // 고유 ID 생성
-        hostId: myName, // ✅ "host_user_123" 대신 실제 내 이름 사용
-        title: titleController.text,
-        movieTitle: movieController.text,
-        theater: theaterController.text,
-        meetingTime: finalDateTime,
-        password: passwordController.text,
-        participantIds: [myName], // ✅ 참여자 목록에도 나(방장) 추가
-        createdAt: DateTime.now(),
-        maxMembers: 4, // (기본값 설정, 필요시 입력받게 수정 가능)
-      );
-
-      // (4) 리스트에 추가 (맨 앞에 추가하여 최신순 유지)
-      meetings.insert(0, newRoom); 
-
-      // (5) 성공 처리
-      Get.snackbar("성공", "모임이 생성되었습니다!");
-      _clearFields(); // 입력창 초기화
-      Get.back(); // 목록 화면으로 돌아가기
-
-    } catch (e) {
-      print("에러 발생: $e");
-      Get.snackbar("오류", "방 생성 중 문제가 발생했습니다.");
-    } finally {
-      isLoading.value = false;
-    }
+  @override
+  void onInit() {
+    super.onInit();
+    loadMeetings();
   }
 
-  // 입력창 초기화
-  void _clearFields() {
-    titleController.clear();
-    movieController.clear();
-    theaterController.clear();
-    passwordController.clear();
-    selectedDate.value = null;
-    selectedTime.value = null;
-  }
-  
   @override
   void onClose() {
     titleController.dispose();
@@ -102,31 +44,187 @@ class MeetingController extends GetxController {
     super.onClose();
   }
 
-  bool checkPassword(MeetingRoom room, String inputPassword) {
-    if (room.password == inputPassword) {
-      return true; // 통과
-    } else {
-      Get.snackbar(
-        "입장 실패", 
-        "비밀번호가 일치하지 않습니다.",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
-      );
-      return false; // 실패
+  void setSelectedMovie({
+    required int movieId,
+    required String title,
+    String? posterPath,
+  }) {
+    selectedMovieId.value = movieId;
+    selectedMoviePosterPath.value = posterPath ?? '';
+    movieController.text = title;
+  }
+
+  void clearSelectedMovie() {
+    selectedMovieId.value = -1;
+    selectedMoviePosterPath.value = '';
+  }
+
+  Future<void> loadMeetings() async {
+    isLoading.value = true;
+    try {
+      final raw = await _api.getMeetings();
+      final list = raw
+          .whereType<Map>()
+          .map((m) => MeetingRoom.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      meetings.assignAll(list);
+    } catch (_) {
+      Get.snackbar('오류', '모임 목록을 불러올 수 없습니다');
+    } finally {
+      isLoading.value = false;
     }
   }
-  
-  void deleteMeeting(String roomId) {
-    // 리스트에서 해당 ID를 가진 방을 찾아서 제거 (RxList라 자동 갱신됨)
-    meetings.removeWhere((room) => room.id == roomId);
-    
-    // 뒤로 가기 (목록 화면으로 이동)
-    Get.back(); 
-    
-    Get.snackbar(
-      "삭제 완료", "모임이 삭제되었습니다.",
-      snackPosition: SnackPosition.BOTTOM,
-    );
+
+  Future<bool> createMeetingRoom() async {
+    final title = titleController.text.trim();
+    final movieTitle = movieController.text.trim();
+    final theater = theaterController.text.trim();
+    final pw = passwordController.text.trim();
+
+    if (title.isEmpty ||
+        movieTitle.isEmpty ||
+        theater.isEmpty ||
+        pw.isEmpty ||
+        selectedDate.value == null ||
+        selectedTime.value == null) {
+      Get.snackbar('알림', '모든 정보를 입력해주세요.', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+
+    if (!RegExp(r'^\d{4}$').hasMatch(pw)) {
+      Get.snackbar('알림', '비밀번호는 숫자 4자리여야 합니다.', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+
+    isLoading.value = true;
+    try {
+      final date = selectedDate.value!;
+      final time = selectedTime.value!;
+      final meetingTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+
+      final int? movieId = (selectedMovieId.value >= 0) ? selectedMovieId.value : null;
+      final String? posterPath =
+          selectedMoviePosterPath.value.trim().isEmpty ? null : selectedMoviePosterPath.value.trim();
+
+      final created = await _api.createMeeting(
+        title: title,
+        movieTitle: movieTitle,
+        movieId: movieId,
+        moviePosterPath: posterPath,
+        theater: theater,
+        meetingTime: meetingTime,
+        password: pw,
+        maxMembers: 4,
+      );
+
+      if (created == null || created.isEmpty) {
+        Get.snackbar('오류', '모임 생성 실패');
+        return false;
+      }
+
+      _clearFields();
+      clearSelectedMovie();
+      await loadMeetings();
+      return true;
+    } catch (_) {
+      Get.snackbar('오류', '모임 생성 중 오류가 발생했습니다');
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _clearFields() {
+    titleController.clear();
+    movieController.clear();
+    theaterController.clear();
+    passwordController.clear();
+    selectedDate.value = null;
+    selectedTime.value = null;
+  }
+
+  Future<MeetingRoom?> joinMeeting({
+    required MeetingRoom room,
+    required String password,
+  }) async {
+    final id = room.id?.toString();
+    if (id == null || id.isEmpty) {
+      Get.snackbar('오류', 'meeting id가 없습니다');
+      return null;
+    }
+
+    try {
+      final data = await _api.joinMeeting(meetingId: id, password: password.trim());
+      if (data == null || data.isEmpty) {
+        Get.snackbar('실패', '비밀번호가 올바르지 않거나 참가할 수 없습니다');
+        return null;
+      }
+
+      final updated = MeetingRoom.fromJson(data);
+
+      final idx = meetings.indexWhere((m) => m.id?.toString() == id);
+      if (idx >= 0) {
+        meetings[idx] = updated;
+      } else {
+        meetings.insert(0, updated);
+      }
+      meetings.refresh();
+
+      return updated;
+    } catch (_) {
+      Get.snackbar('오류', '모임 참가 실패');
+      return null;
+    }
+  }
+
+  Future<bool> leaveMeeting({required MeetingRoom room}) async {
+    final id = room.id?.toString();
+    if (id == null || id.isEmpty) {
+      Get.snackbar('오류', 'meeting id가 없습니다');
+      return false;
+    }
+
+    try {
+      final ok = await _api.leaveMeeting(meetingId: id);
+      if (!ok) {
+        Get.snackbar('실패', '모임 나가기에 실패했습니다');
+        return false;
+      }
+      await loadMeetings();
+      return true;
+    } catch (_) {
+      Get.snackbar('오류', '모임 나가기 실패');
+      return false;
+    }
+  }
+
+  Future<bool> deleteMeeting(String meetingId) async {
+    try {
+      final ok = await _api.deleteMeeting(meetingId);
+      if (ok) {
+        meetings.removeWhere((m) => m.id?.toString() == meetingId);
+        meetings.refresh();
+      }
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String myUsernameOrAnon() {
+    final auth = Get.find<AuthController>();
+    final me = auth.user.value;
+    final u = (me?.username ?? '').trim();
+    return u.isEmpty ? '익명' : u;
+  }
+
+  bool isParticipant(MeetingRoom room) {
+    final auth = Get.find<AuthController>();
+    final me = auth.user.value;
+    final myUsername = (me?.username ?? '').trim();
+    if (myUsername.isEmpty) return false;
+    return room.participantIds.map((e) => e.trim()).contains(myUsername);
   }
 }

@@ -60,7 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (success) {
-      Get.offAllNamed('/home');
+      Get.offAllNamed('/');
     } else {
       Get.snackbar(
         '회원가입 실패',

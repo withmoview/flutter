@@ -1,25 +1,68 @@
-import 'package:flutter/material.dart';
+// lib/services/api_service.dart
+import 'dart:io';
+
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
-//api 통신을 하기 위한 기본 클래스
-class ApiService extends GetConnect{
-  String? _token; //통신에 사용할 인증 Token
+class ApiService extends GetConnect {
   final box = GetStorage();
+
+  @override
+  void onInit() {
+    httpClient.baseUrl = 'https://flutter.banawy.store/api';
+    httpClient.timeout = const Duration(seconds: 30);
+
+    // Authorization 헤더 단일 관리
+    httpClient.addRequestModifier<dynamic>((request) {
+      final token = box.read('token');
+      if (token != null && token.toString().isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      return request;
+    });
+
+    super.onInit();
+  }
+
+  // --------------------------
+  // Helpers
+  // --------------------------
+
+  Map<String, dynamic> _asMap(dynamic body) {
+    if (body is Map) return Map<String, dynamic>.from(body);
+    return <String, dynamic>{};
+  }
+
+  List<dynamic> _asList(dynamic body) {
+    if (body is List) return List<dynamic>.from(body);
+    if (body is Map && body['data'] is List) return List<dynamic>.from(body['data']);
+    return <dynamic>[];
+  }
+
+  Map<String, dynamic>? _dataMap(dynamic body) {
+    final m = _asMap(body);
+    final data = m['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (m.isNotEmpty) return m; // data 없이 오는 서버 대응
+    return null;
+  }
+
+  // ==========================
+  // Auth
+  // ==========================
 
   Future<Response> register({
     required String email,
     required String password,
     required String name,
     required String username,
-  }) async{
-    return await post('/auth/register',{
-      'email' : email,
-      'password' : password,
-      'name' : name,
-      'username' : username,
+  }) {
+    return post('/auth/register', {
+      'email': email,
+      'password': password,
+      'name': name,
+      'username': username,
     });
   }
 
@@ -32,147 +75,207 @@ class ApiService extends GetConnect{
       'password': password,
     });
 
-    print('LOGIN status=${res.statusCode}');
-    print('LOGIN body=${res.body}'); 
-    print('LOGIN bodyType=${res.body.runtimeType}');
-
     if (res.statusCode == 200) {
-      final body = (res.body is Map)
-          ? Map<String, dynamic>.from(res.body)
-          : <String, dynamic>{};
-
+      final body = _asMap(res.body);
       final token = body['token']?.toString();
-      final userMap = (body['user'] is Map)
-          ? Map<String, dynamic>.from(body['user'])
-          : null;
+      final userMap = (body['user'] is Map) ? Map<String, dynamic>.from(body['user']) : null;
 
-      print('PARSED token=$token');
-      print('PARSED user=$userMap');
+      if (token == null || token.isEmpty) throw Exception('token 없음: $body');
+      if (userMap == null) throw Exception('user 없음: $body');
 
-      if (token == null || token.isEmpty) {
-        throw Exception('로그인 응답에 token이 없습니다: $body');
-      }
-      if (userMap == null) {
-        throw Exception('로그인 응답에 user가 없습니다: $body');
-      }
-
-      setToken(token);
-      await box.write('token',token);
+      await box.write('token', token);
       return userMap;
     }
 
-    // 실패 시 서버 메시지 보여주기
-    final msg = (res.body is Map) ? (res.body['detail'] ?? res.body['message']) : null;
+    final body = _asMap(res.body);
+    final msg = body['detail'] ?? body['message'];
     throw Exception(msg?.toString() ?? '로그인 실패(${res.statusCode})');
-}
-
-
-  @override
-  void onInit(){
-
-    //서버 주소를 설정
-    httpClient.baseUrl = 'http://10.0.2.2:3000/api';
-
-    httpClient.addRequestModifier<dynamic>((request){
-      final token = box.read('token');
-      if(token != null){
-        request.headers['Authorization'] = 'Bearer $token';
-      }
-      return request;
-    });
-
-    httpClient.timeout = const Duration(seconds: 30);
-
-    httpClient.addRequestModifier<dynamic>((request) async {
-      if (_token != null) {
-      request.headers['Authorization'] = 'Bearer $_token';
-      }
-      return request;
-    });
-
-    super.onInit();
   }
 
-  void setToken(String? token){
-    _token = token;
-  }
-  
-  void clearToken(){
-    _token = null;
+  void clearToken() {
+    box.remove('token');
   }
 
-  Future<List<dynamic>> getTimeline() async{
+  // ==========================
+  // Tweets
+  // ==========================
+
+  Future<List<dynamic>> getTimeline() async {
     final res = await get('/tweets');
-    if(res.statusCode == 200){
-      return res.body['data'] ?? [];
+    if (res.statusCode == 200) {
+      // 서버가 {data:[...]} 형태라고 가정 (기존 방식 유지)
+      return _asList(res.body is Map ? res.body : {'data': res.body});
     }
-    return  [];
+    return [];
   }
 
-  Future<Response> createTweet(String content) async{
-    return await post('/tweets', {'content': content});
+  Future<Response> createTweet(String content) {
+    return post('/tweets', {'content': content});
   }
 
-  Future<bool> deleteTweet(int id) async{
+  Future<bool> deleteTweet(int id) async {
     final res = await delete('/tweets/$id');
-    return res.statusCode == 200;
+    return res.statusCode == 200 || res.statusCode == 204;
   }
-  Future<Map<String, dynamic>?> toggleLike(int tweetId) async{
+
+  Future<Map<String, dynamic>?> toggleLike(int tweetId) async {
     final res = await post('/tweets/$tweetId/like', {});
-    if(res.statusCode == 200){
-      return res.body;
+    if (res.statusCode == 200) {
+      final data = _dataMap(res.body);
+      if (data == null) return null;
+
+      final liked = data['liked'] ?? data['is_liked'];
+      final likeCount = data['like_count'] ?? data['likeCount'];
+
+      return {
+        'liked': liked == true || liked == 1,
+        'like_count': (likeCount is num) ? likeCount.toInt() : int.tryParse('$likeCount') ?? 0,
+      };
     }
     return null;
   }
 
-  // 내 프로필 조회
+  // ==========================
+  // Users / Profile
+  // ==========================
+
   Future<Map<String, dynamic>?> getMyProfile() async {
-  final res = await get('/users/me');
-  if (res.statusCode == 200) {
-    return res.body['data'];  // 유저 정보 반환
-  }
-  return null;
-  }
-  // 내가 쓴 트윗 목록
-  Future<List<dynamic>> getMyTweets() async {
-  final res = await get('/users/me/tweets');
-  if (res.statusCode == 200) {
-    return res.body['data'] ?? [];
-  }
-  return [];
+    final res = await get('/users/me');
+    if (res.statusCode == 200) return _dataMap(res.body);
+    return null;
   }
 
-  Future<int?> uploadImage(XFile image) async{
+  Future<List<dynamic>> getMyTweets() async {
+    final res = await get('/users/me/tweets');
+    if (res.statusCode == 200) {
+      return _asList(res.body is Map ? res.body : {'data': res.body});
+    }
+    return [];
+  }
+
+  Future<int?> uploadImage(XFile image) async {
     final form = FormData({
-      'file' : MultipartFile(
-        File(image.path),
-        filename: image.name,
-      ),
+      'file': MultipartFile(File(image.path), filename: image.name),
     });
 
-    final res = await post('/files', form);
+    final res = await post('/files', form, contentType: 'multipart/form-data');
 
-    if(res.statusCode == 201){
-      return res.body['data']['id'];
+    if (res.statusCode == 201 || res.statusCode == 200) {
+      final data = _dataMap(res.body);
+      final id = data?['id'];
+      if (id is int) return id;
+      return int.tryParse('$id');
     }
     return null;
   }
 
-  String getImageUrl(int fileId){
-    return '${httpClient.baseUrl}/files/$fileId';
-  }
+  String getImageUrl(int fileId) => '${httpClient.baseUrl}/files/$fileId';
 
   Future<Map<String, dynamic>?> updateProfile({
     String? name,
     int? profileImageId,
-  }) async{
+  }) async {
     final data = <String, dynamic>{};
-    if(name != null) data['name'] = name;
-    if(profileImageId != null) data['profile_image_id'] = profileImageId;
+    if (name != null) data['name'] = name;
+    if (profileImageId != null) data['profile_image_id'] = profileImageId;
 
     final res = await put('/users/me', data);
-    if(res.statusCode == 200){
-      return res.body['data'];
+    if (res.statusCode == 200) return _dataMap(res.body);
+    return null;
+  }
+
+  // ==========================
+  // Meetings
+  // ==========================
+
+  Future<List<dynamic>> getMeetings() async {
+    final res = await get('/meetings');
+    if (res.statusCode == 200) {
+      // 서버: { data: [MeetingOut...] }
+      return _asList(res.body);
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>?> getMeeting(String meetingId) async {
+    final res = await get('/meetings/$meetingId');
+    if (res.statusCode == 200) {
+      return _dataMap(res.body); // {data:{...}} → {...}
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> createMeeting({
+    required String title,
+    required String movieTitle,
+    int? movieId,
+    String? moviePosterPath,
+    required String theater,
+    required DateTime meetingTime,
+    required String password,
+    int maxMembers = 4,
+  }) async {
+    final res = await post('/meetings', {
+      'title': title,
+      'movieTitle': movieTitle,
+      'movieId': movieId,
+      'moviePosterPath': moviePosterPath,
+      'theater': theater,
+      'meetingTime': meetingTime.toIso8601String(),
+      'password': password,
+      'maxMembers': maxMembers,
+    });
+
+    if (res.statusCode == 201 || res.statusCode == 200) {
+      return _dataMap(res.body); // {data:{...}} → {...}
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> joinMeeting({
+    required String meetingId,
+    required String password,
+  }) async {
+    final res = await post('/meetings/$meetingId/join', {'password': password});
+    if (res.statusCode == 200) {
+      return _dataMap(res.body); // {data:{...}} → {...}
+    }
+    return null;
+  }
+
+  /// ✅ 서버가 204 No Content
+  Future<bool> leaveMeeting({required String meetingId}) async {
+    final res = await post('/meetings/$meetingId/leave', {});
+    return res.statusCode == 204 || res.statusCode == 200;
+  }
+
+  Future<bool> deleteMeeting(String meetingId) async {
+    final res = await delete('/meetings/$meetingId');
+    return res.statusCode == 204 || res.statusCode == 200;
+  }
+
+  // ==========================
+  // Chat (Meeting Messages)
+  // ==========================
+
+  Future<List<dynamic>> getMeetingMessages(String meetingId) async {
+    final res = await get('/meetings/$meetingId/messages');
+    if (res.statusCode == 200) {
+      // 서버: list[ChatMessageOut]
+      return _asList(res.body);
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>?> sendMeetingMessage({
+    required String meetingId,
+    required String content,
+  }) async {
+    final res = await post('/meetings/$meetingId/messages', {'content': content});
+    if (res.statusCode == 201 || res.statusCode == 200) {
+      // 서버: ChatMessageOut object
+      if (res.body is Map) return Map<String, dynamic>.from(res.body);
+      return null;
     }
     return null;
   }

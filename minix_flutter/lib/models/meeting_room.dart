@@ -1,58 +1,177 @@
 // lib/models/meeting_room.dart
 
 class MeetingRoom {
-  final String? id; // 방 고유 ID (DB에서 생성)
-  final String hostId; // 방장 UID (로그인한 유저)
-  final String title; // 방 제목 (예: "오늘 밤 듄2 보실 분")
-  final String movieTitle; // 영화 제목
-  final String theater; // 영화관 (예: CGV 용산)
-  final DateTime meetingTime; // 모임 날짜 및 시간
-  final String password; // 입장 비밀번호 (4자리)
-  final int maxMembers; // 최대 인원 (기본 4명 등)
-  final List<String> participantIds; // 참여자 ID 목록
-  final DateTime createdAt; // 방 생성 시간
+  final String? id; // 서버 int든 string이든 문자열로 통일
+  final String hostId; // hostId/host_username 등 서버 필드 대응
+  final String title;
+  final String movieTitle;
+
+  // TMDB 선택 필드
+  final int? movieId;
+  final String? moviePosterPath;
+
+  final String theater;
+  final DateTime meetingTime;
+
+  // ⚠️ 보안상 서버에서 내려주면 안 되지만,
+  // 기존 UI 구조 유지 위해 nullable로 둠 (목록에서는 안 쓰는 걸 권장)
+  final String? password;
+
+  final int maxMembers;
+  final List<String> participantIds;
+  final DateTime createdAt;
 
   MeetingRoom({
     this.id,
     required this.hostId,
     required this.title,
     required this.movieTitle,
+    this.movieId,
+    this.moviePosterPath,
     required this.theater,
     required this.meetingTime,
-    required this.password,
-    this.maxMembers = 4, // 기본값 4명
+    this.password,
+    this.maxMembers = 4,
     this.participantIds = const [],
     required this.createdAt,
   });
 
-  // DB(JSON) 데이터를 앱에서 쓸 수 있게 변환
-  factory MeetingRoom.fromJson(Map<String, dynamic> json, String id) {
+  // ✅ 서버 JSON -> 앱 모델 (snake/camel 혼합 대응)
+  factory MeetingRoom.fromJson(Map<String, dynamic> json) {
+    final idVal = json['id'] ?? json['_id'];
+
+    final host = _asString(
+      json['hostId'] ??
+          json['host_id'] ??
+          json['hostUsername'] ??
+          json['host_username'] ??
+          json['host'] ??
+          '',
+    );
+
+    final participantsRaw =
+        json['participantIds'] ?? json['participant_ids'] ?? json['participants'] ?? const [];
+    final participants = _asStringList(participantsRaw);
+
+    final maxMembers = _asInt(json['maxMembers'] ?? json['max_members'] ?? 4, fallback: 4);
+
+    final meetingTimeStr = json['meetingTime'] ?? json['meeting_time'];
+    final meetingTime = _asDateTime(meetingTimeStr) ?? DateTime.now();
+
+    final createdAtStr = json['createdAt'] ?? json['created_at'];
+    final createdAt = _asDateTime(createdAtStr) ?? DateTime.now();
+
+    final movieId = _asNullableInt(json['movieId'] ?? json['movie_id']);
+    final posterPath = _asNullableString(json['moviePosterPath'] ?? json['movie_poster_path']);
+
     return MeetingRoom(
-      id: id,
-      hostId: json['hostId'] ?? '',
-      title: json['title'] ?? '',
-      movieTitle: json['movieTitle'] ?? '',
-      theater: json['theater'] ?? '',
-      meetingTime: DateTime.parse(json['meetingTime']), 
-      password: json['password'] ?? '',
-      maxMembers: json['maxMembers'] ?? 4,
-      participantIds: List<String>.from(json['participantIds'] ?? []),
-      createdAt: DateTime.parse(json['createdAt']),
+      id: idVal == null ? null : idVal.toString(),
+      hostId: host,
+      title: _asString(json['title']),
+      movieTitle: _asString(json['movieTitle'] ?? json['movie_title']),
+      movieId: movieId,
+      moviePosterPath: posterPath,
+      theater: _asString(json['theater']),
+      meetingTime: meetingTime,
+      password: _asNullableString(json['password']), // 서버가 안 주면 null
+      maxMembers: maxMembers,
+      participantIds: participants,
+      createdAt: createdAt,
     );
   }
 
-  // 앱 데이터를 DB(JSON)로 보낼 때 변환
+  // ✅ 앱 -> 서버 전송 (ApiService.createMeeting()랑 맞춰서 camelCase로 통일)
   Map<String, dynamic> toJson() {
     return {
-      'hostId': hostId,
       'title': title,
       'movieTitle': movieTitle,
+      'movieId': movieId,
+      'moviePosterPath': moviePosterPath,
       'theater': theater,
       'meetingTime': meetingTime.toIso8601String(),
       'password': password,
       'maxMembers': maxMembers,
-      'participantIds': participantIds,
-      'createdAt': createdAt.toIso8601String(),
     };
+  }
+
+  String? get moviePosterUrl {
+    final p = moviePosterPath;
+    if (p == null || p.isEmpty) return null;
+    return 'https://image.tmdb.org/t/p/w780$p';
+  }
+
+  // ---- helpers ----
+  static String _asString(dynamic v) => (v ?? '').toString();
+
+  static String? _asNullableString(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  static int _asInt(dynamic v, {int fallback = 0}) {
+    if (v is int) return v;
+    return int.tryParse((v ?? '').toString()) ?? fallback;
+  }
+
+  static int? _asNullableInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    return int.tryParse(v.toString());
+  }
+
+  static DateTime? _asDateTime(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    return DateTime.tryParse(v.toString());
+  }
+
+  static List<String> _asStringList(dynamic v) {
+    if (v == null) return <String>[];
+    if (v is List) {
+      return v.map((e) => e.toString()).toList();
+    }
+    final s = v.toString();
+    if (s.contains(',')) {
+      return s
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    if (s.trim().isEmpty) return <String>[];
+    return <String>[s.trim()];
+  }
+}
+
+extension MeetingRoomCopy on MeetingRoom {
+  MeetingRoom copyWith({
+    String? id,
+    String? hostId,
+    String? title,
+    String? movieTitle,
+    int? movieId,
+    String? moviePosterPath,
+    String? theater,
+    DateTime? meetingTime,
+    String? password,
+    int? maxMembers,
+    List<String>? participantIds,
+    DateTime? createdAt,
+  }) {
+    return MeetingRoom(
+      id: id ?? this.id,
+      hostId: hostId ?? this.hostId,
+      title: title ?? this.title,
+      movieTitle: movieTitle ?? this.movieTitle,
+      movieId: movieId ?? this.movieId,
+      moviePosterPath: moviePosterPath ?? this.moviePosterPath,
+      theater: theater ?? this.theater,
+      meetingTime: meetingTime ?? this.meetingTime,
+      password: password ?? this.password,
+      maxMembers: maxMembers ?? this.maxMembers,
+      participantIds: participantIds ?? this.participantIds,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 }

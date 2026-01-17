@@ -15,7 +15,7 @@ class AiChatController extends GetxController {
   late final ChatSession _chatSession;
 
   // 🔑 API 키 (실제 앱에선 .env 파일 등에 숨겨야 합니다)
-  final String _apiKey = '222';
+  final String _apiKey = 'AIzaSyA9iFhaOaN17Ox3qTu06h6snG0j4f4t0q8';
 
   // 🧠 [핵심] Gemini에게 미리 주입할 우리 앱만의 정보 (System Instruction)
   final String _systemInstruction = '''

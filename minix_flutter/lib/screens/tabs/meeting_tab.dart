@@ -1,340 +1,458 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart'; // 날짜 예쁘게 표시용 (없으면 pub add intl)
+import 'package:intl/intl.dart';
 
 import 'package:minix_flutter/controllers/meeting_controller.dart';
+import 'package:minix_flutter/controllers/main_controller.dart';
+
 import '../../models/meeting_room.dart';
 import '../create_meeting_screen.dart';
 import '../meeting_detail_screen.dart';
+
+const _kBg = Color(0xFFF4F6F8);
+const _kCard = Colors.white;
+const _kBorder = Color(0xFFE6E8EE);
+const _kText = Color(0xFF141A2A);
+const _kSub = Color(0xFF6B7280);
+const _kPrimary = Color(0xFF4E73DF);
+
+final _kCardDecoration = BoxDecoration(
+  color: _kCard,
+  borderRadius: BorderRadius.circular(16),
+  border: Border.all(color: _kBorder, width: 1),
+);
 
 class MeetingTab extends StatelessWidget {
   const MeetingTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 의존성 주입된 컨트롤러 찾기
     final meetingController = Get.find<MeetingController>();
-    final Color backgroundColor = const Color(0xFFF5F7FA);
+    final mainController = Get.find<MainController>();
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-        title: Text(
-          'withmovie',
-          style: GoogleFonts.poppins(
-            color: const Color(0XFF4E73DF),
-            fontWeight: FontWeight.w700,
-            fontSize: 28,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline, color: Colors.black87),
-            onPressed: () => Get.toNamed('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            onPressed: () => Get.offAllNamed('/'),
-          ),
-        ],
-      ),
-
-      // ✅ [Body] 리스트 상태에 따라 다른 화면 보여주기
-      body: Obx(() {
-        // 1. 모임이 없을 때 (빈 화면)
-        if (meetingController.meetings.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.movie_filter_outlined,
-                  size: 80,
-                  color: Colors.grey[300],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "아직 생성된 모임이 없어요.\n아래 버튼을 눌러 모임을 만들어보세요!",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.notoSansKr(
-                    color: Colors.grey[500],
-                    fontSize: 16,
-                    height: 1.5,
+    return Container(
+      color: _kBg,
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.black.withOpacity(0.04)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _kPrimary,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.06),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              'withmovie',
+                              style: GoogleFonts.poppins(
+                                color: _kText,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      _CircleIconButton(
+                        icon: Icons.person_outline,
+                        onTap: () => mainController.changeTabIndex(3),
+                      ),
+                      const SizedBox(width: 10),
+                      _CircleIconButton(
+                        icon: Icons.add,
+                        onTap: () => Get.to(() => const CreateMeetingScreen()),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          );
-        }
-        // 2. 모임이 있을 때 (리스트뷰)
-        else {
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: meetingController.meetings.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final room = meetingController.meetings[index];
-              return _MeetingCard(room: room);
-            },
-          );
-        }
-      }),
-
-      // 모임 만들기 버튼
-      floatingActionButtonLocation: FloatingActionButtonLocation
-          .centerFloat, // 중앙 하단으로 이동 (우측은 AI버튼과 겹치므로)
-
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 85), // 👆 하단 네비게이션 바 높이만큼 띄우기
-        child: SizedBox(
-          height: 42,
-          child: FloatingActionButton.extended(
-            onPressed: () => Get.to(() => const CreateMeetingScreen()),
-            backgroundColor: const Color(0XFF4E73DF),
-            elevation: 4,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: Text(
-              "모임 만들기",
-              style: GoogleFonts.notoSansKr(
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                fontSize: 14,
+                  const SizedBox(height: 14),
+                  Text(
+                    '모임',
+                    style: GoogleFonts.notoSansKr(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: _kText,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '영화 보고 같이 이야기할 사람을 찾아보세요.',
+                    style: GoogleFonts.notoSansKr(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: _kSub,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
+
+            Expanded(
+              child: Obx(() {
+                if (meetingController.isLoading.value && meetingController.meetings.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (meetingController.meetings.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return RefreshIndicator(
+                  onRefresh: meetingController.loadMeetings,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                    itemCount: meetingController.meetings.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final room = meetingController.meetings[index];
+                      return _MeetingCard(room: room);
+                    },
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: _kBorder),
+              ),
+              child: const Icon(
+                Icons.movie_filter_outlined,
+                size: 42,
+                color: Color(0xFFB6BDC9),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              "아직 생성된 모임이 없습니다.",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.notoSansKr(
+                color: _kText,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "우측 상단 + 버튼으로 모임을 만들어주세요.",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.notoSansKr(
+                color: _kSub,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                height: 1.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// 📌 [카드 위젯] 모임 정보를 보여주는 디자인
 class _MeetingCard extends StatelessWidget {
   final MeetingRoom room;
   const _MeetingCard({required this.room});
 
   @override
   Widget build(BuildContext context) {
-    // 날짜 포맷 (intl 패키지 사용)
-    String dateStr = DateFormat(
-      'M월 d일 (E) HH:mm',
-      'ko_KR',
-    ).format(room.meetingTime);
+    final dateStr = DateFormat('M월 d일 (E) HH:mm', 'ko_KR').format(room.meetingTime);
 
-    return InkWell(
-      onTap: () {
-        final passController = TextEditingController();
-
-        Get.defaultDialog(
-          title: "비공개 모임", // 이모티콘 제거
-          titlePadding: const EdgeInsets.only(top: 24, bottom: 10),
-          titleStyle: GoogleFonts.notoSansKr(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-          radius: 16,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 10,
-          ),
-
-          content: Column(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openPasswordDialog(room),
+        child: Ink(
+          decoration: _kCardDecoration,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "호스트가 설정한 비밀번호\n4자리를 입력해주세요.",
-                textAlign: TextAlign.center,
-                style: GoogleFonts.notoSansKr(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 입력창 디자인
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FA),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                  controller: passController,
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2.0,
-                  ),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    hintText: "----", // 점(••••) 대신 하이픈이나 빈칸 추천
-                    hintStyle: TextStyle(
-                      color: Colors.grey,
-                      letterSpacing: 2.0,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const _StatusChip(text: "모집중"),
+                  Text(
+                    dateStr,
+                    style: GoogleFonts.notoSansKr(
+                      color: _kSub,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
-                    contentPadding: EdgeInsets.symmetric(vertical: 14),
                   ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              Text(
+                room.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.notoSansKr(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: _kText,
                 ),
               ),
               const SizedBox(height: 10),
-            ],
-          ),
 
-          // 확인 버튼
-          confirm: SizedBox(
-            width: 100,
-            child: ElevatedButton(
-              onPressed: () {
-                final meetingController = Get.find<MeetingController>();
-                if (meetingController.checkPassword(
-                  room,
-                  passController.text,
-                )) {
-                  Get.back();
-                  Get.to(() => const MeetingDetailScreen(), arguments: room);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0XFF4E73DF),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: const Text(
-                "입장",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-
-          // 취소 버튼
-          cancel: SizedBox(
-            width: 100,
-            child: TextButton(
-              onPressed: () => Get.back(),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey[600],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: const Text("취소"),
-            ),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 상단: 상태 칩 + 날짜
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0XFF4E73DF).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    "모집중",
-                    style: TextStyle(
-                      color: Color(0XFF4E73DF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  const Icon(Icons.movie_outlined, size: 16, color: Color(0xFF9CA3AF)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      room.movieTitle,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _kText,
+                      ),
                     ),
                   ),
-                ),
-                Text(
-                  dateStr,
-                  style: const TextStyle(color: Colors.black54, fontSize: 13),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // 방 제목
-            Text(
-              room.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            // 영화 정보 & 장소
-            Row(
-              children: [
-                const Icon(Icons.movie_outlined, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  room.movieTitle,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
-                ),
-                const SizedBox(width: 12),
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: Colors.grey,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    room.theater,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                    overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF9CA3AF)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      room.theater,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _kText,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
 
-            // 하단: 참여 인원
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Icon(Icons.people_outline, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  "${room.participantIds.length}/${room.maxMembers}명",
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ],
+              Row(
+                children: [
+                  const Icon(Icons.people_outline, size: 16, color: Color(0xFF9CA3AF)),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${room.participantIds.length}/${room.maxMembers}명",
+                    style: GoogleFonts.notoSansKr(
+                      color: _kSub,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right_rounded, color: Color(0xFFB6BDC9)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openPasswordDialog(MeetingRoom room) {
+    final passController = TextEditingController();
+
+    Get.defaultDialog(
+      title: "비공개 모임",
+      titlePadding: const EdgeInsets.only(top: 22, bottom: 10),
+      titleStyle: GoogleFonts.notoSansKr(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: _kText,
+      ),
+      radius: 16,
+      contentPadding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+      content: Column(
+        children: [
+          Text(
+            "호스트가 설정한 비밀번호 4자리를 입력해주세요.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.notoSansKr(
+              color: _kSub,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
             ),
-          ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: _kBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kBorder),
+            ),
+            child: TextField(
+              controller: passController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2.0,
+                color: _kText,
+              ),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                hintText: "----",
+                hintStyle: GoogleFonts.poppins(
+                  color: const Color(0xFF9CA3AF),
+                  letterSpacing: 2.0,
+                  fontWeight: FontWeight.w600,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+      confirm: SizedBox(
+        width: 110,
+        child: ElevatedButton(
+          onPressed: () async {
+            final meetingController = Get.find<MeetingController>();
+
+            final updated = await meetingController.joinMeeting(
+              room: room,
+              password: passController.text,
+            );
+
+            if (updated != null) {
+              Get.back(); // dialog close
+              Get.to(() => const MeetingDetailScreen(), arguments: updated);
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _kPrimary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          child: Text("입장", style: GoogleFonts.notoSansKr(fontWeight: FontWeight.w800)),
+        ),
+      ),
+      cancel: SizedBox(
+        width: 110,
+        child: OutlinedButton(
+          onPressed: () => Get.back(),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _kSub,
+            side: const BorderSide(color: _kBorder),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          child: Text("취소", style: GoogleFonts.notoSansKr(fontWeight: FontWeight.w800)),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String text;
+  const _StatusChip({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFDDE3FF)),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.notoSansKr(
+          color: _kPrimary,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CircleIconButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: _kBorder),
+          ),
+          child: Icon(icon, color: _kText),
         ),
       ),
     );

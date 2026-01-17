@@ -10,6 +10,7 @@ import 'screens/splash_screen.dart';
 import 'screens/tabs/home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/compose_screen.dart';
+import 'screens/meeting_chat_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
         GetPage(name: '/profile', page:() => const ProfileScreen()),
         GetPage(name: '/compose',  page: () => const ComposeScreen()),
         GetPage(name: '/ai', page: () => const AiScreen()),
+        GetPage(name: '/meeting/chat', page: () => const MeetingChatScreen()),
       ],
     );
   }
