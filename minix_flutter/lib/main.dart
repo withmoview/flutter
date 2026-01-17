@@ -4,6 +4,7 @@ import 'package:minix_flutter/controllers/TweetController.dart';
 import 'package:minix_flutter/controllers/auth_controller.dart';
 import 'package:minix_flutter/controllers/main_controller.dart';
 import 'package:minix_flutter/controllers/meeting_controller.dart';
+import 'package:minix_flutter/controllers/comment_controller.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:get/get.dart';
 import './app.dart';
