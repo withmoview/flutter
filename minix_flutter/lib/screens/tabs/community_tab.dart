@@ -23,7 +23,7 @@ class CommunityTab extends StatelessWidget{
         centerTitle: false, // 타이틀 왼쪽 정렬
         title: Text(
           'withmovie',
-          style: GoogleFonts.dancingScript(
+          style: GoogleFonts.poppins(
             color: const Color(0XFF4E73DF),
             fontWeight: FontWeight.w700,
             fontSize: 28,

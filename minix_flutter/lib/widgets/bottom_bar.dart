@@ -111,7 +111,7 @@ class _PillNav extends StatelessWidget {
                         item.icon,
                         size: 24,
                         // 선택되면 검정, 아니면 회색
-                        color: selected ? Colors.black : const Color(0xFF9E9E9E),
+                        color: selected ? Color(0xFF4E73DF) : const Color(0xFF9E9E9E),
                       ),
                       
                       const SizedBox(height: 4), // 아이콘과 글씨 사이 간격
@@ -124,7 +124,7 @@ class _PillNav extends StatelessWidget {
                           // 선택되면 굵게(Bold), 아니면 보통(Medium)
                           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                           // 선택되면 검정, 아니면 회색
-                          color: selected ? Colors.black : const Color(0xFF9E9E9E),
+                          color: selected ? Color(0xFF4E73DF) : const Color(0xFF9E9E9E),
                         ),
                       ),
                     ],
@@ -174,7 +174,7 @@ class _AiButton extends StatelessWidget {
           child: Icon(
             icon, 
             size: 26, 
-            color: Colors.black,
+            color: Color(0xFF4E73DF),
           ),
         ),
       ),

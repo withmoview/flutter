@@ -6,6 +6,7 @@ class User {
   final String name;
   final String username;
   final String? profileImage; 
+  final int? profile_image_id;
   final DateTime createdAt;
 
   User({
@@ -14,6 +15,7 @@ class User {
     required this.name,
     required this.username,
     this.profileImage, 
+    this.profile_image_id,
     required this.createdAt,
   });
 
@@ -23,6 +25,7 @@ class User {
       email: (json['email'] ?? '') as String,
       name: (json['name'] ?? '') as String,
       username: (json['username'] ?? '') as String,
+      profile_image_id: json['profile_image_id'],
       profileImage: json['profileImage'] as String?, 
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'].toString()) 

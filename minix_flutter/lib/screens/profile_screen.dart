@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:minix_flutter/models/tweet.dart';
 import 'package:minix_flutter/screens/webview_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../controllers/auth_controller.dart';
 import '../services/api_service.dart';
@@ -21,20 +23,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Tweet> _myTweets = []; // 내 트윗 목록
   bool _isLoading = true; // 로딩 상태
 
-  // ★ 디자인 테마 컬러 (로그인 화면과 통일)
+  // 디자인 테마 컬러
   final Color _primaryColor = const Color(0xFF4E73DF);
-  final Color _backgroundColor = const Color(0xFFF5F7FA); // 아주 연한 회색 배경
+  final Color _backgroundColor = const Color(0xFFF5F7FA);
 
   @override
   void initState() {
     super.initState();
-    _loadData(); // 화면 진입시 데이터 로드
+    _loadData();
   }
 
+  // 데이터 로드 (내 트윗 목록)
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // 서버에서 내 트윗 목록 가져오기
       final tweetsData = await _api.getMyTweets();
       _myTweets = (tweetsData as List)
           .map((json) => Tweet.fromJson(Map<String, dynamic>.from(json)))
@@ -45,20 +47,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = false);
   }
 
+  // 프로필 이미지 변경 로직
+  Future<void> _changeProfileImage() async {
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+    );
+
+    if (image == null) return;
+
+    try {
+      // 1. 파일 업로드
+      final fileId = await _api.uploadImage(image);
+      if (fileId == null) {
+        Get.snackbar('오류', '이미지 업로드에 실패했습니다');
+        return;
+      }
+
+      // 2. 프로필 정보 업데이트
+      final success = await _api.updateProfile(profileImageId: fileId);
+      if (success != null) {
+        Get.snackbar('완료', '프로필 이미지가 변경되었습니다');
+        await _authController.loadProfile(); // 최신 정보 갱신
+      }
+    } catch (e) {
+      Get.snackbar('오류', '프로필 수정에 실패했습니다');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor, // 배경색 변경
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          '프로필',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        title: Text(
+          'Profile',
+          style: GoogleFonts.poppins(
+            color: const Color.fromARGB(255, 0, 0, 0),
+            fontWeight: FontWeight.w700,
+            fontSize: 28,
+          ),
         ),
         backgroundColor: Colors.white,
-        elevation: 0, // 앱바 그림자 제거 (깔끔하게)
+        elevation: 0,
         centerTitle: true,
         actions: [
-          // 로그아웃 버튼 (스타일 개선)
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () => _authController.logout(),
@@ -81,7 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             const SizedBox(height: 20),
 
-            // 1. 프로필 카드 섹션 (하얀색 박스 안에 정보 담기)
+            // 1. 프로필 카드 섹션
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
@@ -98,30 +131,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  // 프로필 이미지 (그림자 추가)
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: _primaryColor.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
+                  // 프로필 이미지 및 카메라 버튼
+                  Stack(
+                    children: [
+                      // 기존 이미지 영역
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: _primaryColor.withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 45, // 크기 살짝 조정
-                      backgroundColor: _primaryColor,
-                      child: Text(
-                        user.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                        child: CircleAvatar(
+                          radius: 45,
+                          backgroundImage: user.profile_image_id != null
+                              ? NetworkImage(
+                                  _api.getImageUrl(user.profile_image_id!))
+                              : null,
+                          backgroundColor: _primaryColor,
+                          child: user.profile_image_id == null
+                              ? Text(
+                                  user.name.isNotEmpty
+                                      ? user.name[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
-                    ),
+                      // 카메라 버튼
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: InkWell(
+                          onTap: _changeProfileImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey[200]!),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
@@ -136,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 4),
 
-                  // 사용자명
+                  // 사용자 아이디
                   Text(
                     '@${user.username}',
                     style: TextStyle(
@@ -147,11 +220,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 내 트윗 개수 & 이용약관 (가로로 배치하여 공간 절약)
+                  // 통계 및 약관
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // 트윗 개수 표시
+                      // 트윗 개수
                       _buildInfoItem(
                         count: _myTweets.length.toString(),
                         label: "내 트윗",
@@ -171,9 +244,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: const Column(
                           children: [
-                             Icon(Icons.description_outlined, size: 22),
-                             SizedBox(height: 4),
-                             Text("이용약관", style: TextStyle(fontSize: 12)),
+                            Icon(Icons.description_outlined, size: 22),
+                            SizedBox(height: 4),
+                            Text("이용약관", style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -201,14 +274,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-            // 3. 내 트윗 목록
+            // 3. 내 트윗 목록 리스트
             if (_myTweets.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 40),
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.article_outlined, size: 48, color: Colors.grey[300]),
+                      Icon(Icons.article_outlined,
+                          size: 48, color: Colors.grey[300]),
                       const SizedBox(height: 10),
                       Text(
                         '작성한 트윗이 없습니다',
@@ -220,13 +294,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               )
             else
               ListView.separated(
-                physics: const NeverScrollableScrollPhysics(), // 스크롤은 전체 화면이 담당
+                physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 itemCount: _myTweets.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12), // 카드 사이 간격
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
-                  // 트윗 카드 스타일도 살짝 감싸줌
                   return Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -254,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  // 통계 아이템 위젯 (숫자 + 라벨)
+  // 통계 아이템 위젯
   Widget _buildInfoItem({required String count, required String label}) {
     return Column(
       children: [

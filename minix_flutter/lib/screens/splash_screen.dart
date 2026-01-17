@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'dart:math' as math; // 애니메이션 수학 계산용
-import 'package:google_fonts/google_fonts.dart';
+import 'dart:math' as math;
 
+import 'package:minix_flutter/controllers/auth_controller.dart'; // 애니메이션 수학 계산용
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,20 +15,27 @@ class _SplashScreenState extends State<SplashScreen> {
   // 디자인 통일 컬러
   final Color _primaryColor = const Color(0xFF4E73DF);
 
-
   @override
   void initState() {
     super.initState();
     // 애니메이션을 충분히 보여주기 위해 2초로 약간 늘림
     Future.delayed(const Duration(seconds: 2), () {
-      Get.offNamed('/login');
+      _checkAuth();
     });
+  }
+
+  Future<void> _checkAuth() async{
+    final authControleer = Get.find<AuthController>();
+
+    if(authControleer.isLoggedIn){
+      Get.offAllNamed('/home');
+    }else{
+      Get.offAllNamed('/login');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFF5F7FA);
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
@@ -56,13 +63,14 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 24),
 
             // 2. 앱 이름
-            Text(
-              ' withmovie',
-              style: GoogleFonts.dancingScript(
-              color: const Color(0XFF4E73DF),
-              fontWeight: FontWeight.w700,
-              fontSize: 28,
-            ),
+            const Text(
+              '영화랑',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5, // 자간을 살짝 좁혀서 단단한 느낌
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 48),
 
@@ -75,10 +83,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-// ---------------------------------------------------------
-// [커스텀 위젯] 점 3개가 웨이브 타는 애니메이션
-// 외부 라이브러리 없이 구현함
-// ---------------------------------------------------------
+
 class JumpingDots extends StatefulWidget {
   final Color color;
   const JumpingDots({super.key, required this.color});

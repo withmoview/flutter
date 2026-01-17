@@ -12,16 +12,39 @@ class TmdbService extends GetConnect {
     });
   }
 
+  // 1. 최신 영화 (한국어)
   Future<List<Map<String, dynamic>>> getNowPlaying({
     int page = 1,
     String language = 'ko-KR',
   }) async {
-    final res = await get(
+    // 아래 공통 함수(_fetchList)를 사용해서 코드를 줄입니다.
+    return _fetchList(
       '/movie/now_playing',
-      query: {'page': '$page', 'language': language},
+      {'page': '$page', 'language': language, 'region': 'KR'}, 
     );
+  }
+
+  // 2. 인기 영화 (한국 인기순 + 한국어)
+  Future<List<Map<String, dynamic>>> getPopularMovies({
+    int page = 1,
+  }) async {
+    return _fetchList(
+      '/movie/popular',
+      {'page': '$page', 'language': 'ko-KR', 'region': 'KR'},
+    );
+  }
+
+  // [내부 전용 함수] API 요청 및 데이터 가공을 담당
+  Future<List<Map<String, dynamic>>> _fetchList(
+    String endpoint, 
+    Map<String, dynamic> query,
+  ) async {
+    // GetConnect의 get 메서드 사용
+    final res = await get(endpoint, query: query);
 
     if (!res.isOk) {
+      // 에러 로그 출력 (디버깅용)
+      print('TMDB Error: ${res.statusCode} / ${res.bodyString}');
       throw Exception('TMDB error: ${res.statusCode} ${res.statusText}');
     }
 
@@ -33,8 +56,6 @@ class TmdbService extends GetConnect {
     final results = body['results'];
     if (results is! List) return [];
 
-    return results
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
+    return results.whereType<Map<String, dynamic>>().toList(growable: false);
   }
 }

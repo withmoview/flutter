@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:get_storage/get_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 //api 통신을 하기 위한 기본 클래스
 class ApiService extends GetConnect{
   String? _token; //통신에 사용할 인증 Token
+  final box = GetStorage();
 
   Future<Response> register({
     required String email,
@@ -54,6 +57,7 @@ class ApiService extends GetConnect{
       }
 
       setToken(token);
+      await box.write('token',token);
       return userMap;
     }
 
@@ -67,7 +71,16 @@ class ApiService extends GetConnect{
   void onInit(){
 
     //서버 주소를 설정
-    httpClient.baseUrl = 'https://flutter.banawy.store/api';
+    httpClient.baseUrl = 'http://10.0.2.2:3000/api';
+
+    httpClient.addRequestModifier<dynamic>((request){
+      final token = box.read('token');
+      if(token != null){
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      return request;
+    });
+
     httpClient.timeout = const Duration(seconds: 30);
 
     httpClient.addRequestModifier<dynamic>((request) async {
@@ -127,5 +140,40 @@ class ApiService extends GetConnect{
     return res.body['data'] ?? [];
   }
   return [];
+  }
+
+  Future<int?> uploadImage(XFile image) async{
+    final form = FormData({
+      'file' : MultipartFile(
+        File(image.path),
+        filename: image.name,
+      ),
+    });
+
+    final res = await post('/files', form);
+
+    if(res.statusCode == 201){
+      return res.body['data']['id'];
+    }
+    return null;
+  }
+
+  String getImageUrl(int fileId){
+    return '${httpClient.baseUrl}/files/$fileId';
+  }
+
+  Future<Map<String, dynamic>?> updateProfile({
+    String? name,
+    int? profileImageId,
+  }) async{
+    final data = <String, dynamic>{};
+    if(name != null) data['name'] = name;
+    if(profileImageId != null) data['profile_image_id'] = profileImageId;
+
+    final res = await put('/users/me', data);
+    if(res.statusCode == 200){
+      return res.body['data'];
+    }
+    return null;
   }
 }
